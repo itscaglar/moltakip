@@ -7,13 +7,13 @@ import { DATABASE_URL } from '$app/env/private';
 import { dev } from '$app/env';
 
 function createDb() {
-	if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
-
-	// Lokal test için PGLite kullanıyorum
-	if (dev) {
+	// Local test için PGLite kullanıyorum
+	if (dev && !DATABASE_URL) {
 		const client = new PGlite('./.local-pgdata');
 		return drizzlePglite(client, { schema });
 	}
+
+	if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
 	// Production için Postgres kullanıyorum
 	const client = postgres(DATABASE_URL);
