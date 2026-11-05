@@ -8,7 +8,8 @@ import {
 	timestamp,
 	uuid
 } from 'drizzle-orm/pg-core';
-import { user } from './auth.schema';
+import { account, session, user } from './auth.schema';
+import { relations } from 'drizzle-orm';
 
 export * from './auth.schema';
 
@@ -56,7 +57,7 @@ export const correctionStatusEnum = pgEnum('correction_status', [
  *
  * QR kodu ile giriş/çıkış yapabilmek için konum bilgilerini saklar. Her konumun bir adı, koordinatları ve bir yarıçapı vardır. Ayrıca her konum için benzersiz bir QR token üretilir.
  */
-export const location = pgTable('location', {
+export const locationTable = pgTable('location', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
 	latitude: doublePrecision('latitude').notNull(),
@@ -67,15 +68,33 @@ export const location = pgTable('location', {
 });
 
 /**
+ * Mola tablosu
+ *
+ * Kullanıcıların giriş/çıkış yapabilmesi için kullanılır. Her mola, bir kullanıcıya ve bir vardiyaya aittir.
+ */
+export const breakTable = pgTable('break', {
+	id: text('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	type: breakTypeEnum('type').notNull(),
+	startTime: timestamp('start_time').defaultNow().notNull(),
+	endTime: timestamp('end_time'), // Mola bitene kadar null kalır
+	createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+/**
  * Vardiya tablosu
  *
  * Her vardiyanın bir adı, başlangıç ve bitiş zamanı vardır. Vardiyalar, kullanıcıların giriş/çıkış yapabilmesi için kullanılır.
  */
-export const shift = pgTable('shift', {
+export const shiftTable = pgTable('shift', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
 	startTime: time('start_time').notNull(),
-	endTime: time('end_time').notNull()
+	endTime: time('end_time').notNull(),
+	totalBreakMinutes: integer('total_break_minutes').default(60).notNull(),
+	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
 /**
@@ -83,10 +102,41 @@ export const shift = pgTable('shift', {
  *
  * Kullanıcıların yaptığı işlemleri kaydeder.
  */
-export const auditLog = pgTable('audit_log', {
+export const auditLogTable = pgTable('audit_log', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
 	action: text('action').notNull(),
 	details: text('details'),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
+
+/** İlişkiler */
+
+export const shiftRelations = relations(shiftTable, ({ many }) => ({
+	users: many(user)
+}));
+
+export const userRelations = relations(user, ({ one, many }) => ({
+	sessions: many(session),
+	accounts: many(account),
+	shift: one(shiftTable, {
+		fields: [user.shiftId],
+		references: [shiftTable.id]
+	}),
+	breaks: many(breakTable),
+	auditLogs: many(auditLogTable)
+}));
+
+export const breakTableRelations = relations(breakTable, ({ one }) => ({
+	user: one(user, {
+		fields: [breakTable.userId],
+		references: [user.id]
+	})
+}));
+
+export const auditLogRelations = relations(auditLogTable, ({ one }) => ({
+	user: one(user, {
+		fields: [auditLogTable.actorId],
+		references: [user.id]
+	})
+}));
