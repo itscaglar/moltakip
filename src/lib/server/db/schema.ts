@@ -8,8 +8,7 @@ import {
 	timestamp,
 	uuid
 } from 'drizzle-orm/pg-core';
-import { account, session, user } from './auth.schema';
-import { relations } from 'drizzle-orm';
+import { user } from './auth.schema';
 
 export * from './auth.schema';
 
@@ -109,34 +108,3 @@ export const auditLogTable = pgTable('audit_log', {
 	details: text('details'),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
-
-/** İlişkiler */
-
-export const shiftRelations = relations(shiftTable, ({ many }) => ({
-	users: many(user)
-}));
-
-export const userRelations = relations(user, ({ one, many }) => ({
-	sessions: many(session),
-	accounts: many(account),
-	shift: one(shiftTable, {
-		fields: [user.shiftId],
-		references: [shiftTable.id]
-	}),
-	breaks: many(breakTable),
-	auditLogs: many(auditLogTable)
-}));
-
-export const breakTableRelations = relations(breakTable, ({ one }) => ({
-	user: one(user, {
-		fields: [breakTable.userId],
-		references: [user.id]
-	})
-}));
-
-export const auditLogRelations = relations(auditLogTable, ({ one }) => ({
-	user: one(user, {
-		fields: [auditLogTable.actorId],
-		references: [user.id]
-	})
-}));
