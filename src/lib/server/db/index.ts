@@ -4,11 +4,10 @@ import postgres from 'postgres';
 import { PGlite } from '@electric-sql/pglite';
 import * as schema from './schema';
 import { DATABASE_URL } from '$app/env/private';
-import { dev } from '$app/env';
 
 function createDb() {
 	// Local test için PGLite kullanıyorum
-	if (dev && !DATABASE_URL) {
+	if (!DATABASE_URL) {
 		const client = new PGlite('./.local-pgdata');
 		return drizzlePglite(client, { schema });
 	}
